@@ -1,0 +1,28 @@
+<h1 id="tableLabel">Tekken 7 frames</h1>
+
+<p>This component demonstrates fetching data from the server.</p>
+
+<p *ngIf="!moves"><em>Loading...</em></p>
+
+<!-- <table class='table table-striped' aria-labelledby="tableLabel" *ngIf="moves">
+  <thead>
+    <tr>
+      <th>Character</th>
+      <th>Input</th>
+      <th>Hit frame</th>
+      <th>Block frame</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let move of moves">
+      <td>{{ move.character }}</td>
+      <td>{{ move.input }}</td>
+      <td>{{ move.hitFrame }}</td>
+      <td>{{ move.blockFrame }}</td>
+    </tr>
+  </tbody>
+</table> -->
+
+<ejs-grid [dataSource]='moves' [allowPaging]="true" [allowSorting]="true" [allowFiltering]="true" [pageSettings]='pageSettings'
+  [filterSettings]='filterOptions'>
+</ejs-grid>
