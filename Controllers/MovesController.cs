@@ -2,9 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using OfficeOpenXml;
 
@@ -66,7 +63,10 @@ namespace tekken_frames.Controllers
 
         private int ParseFrames(string frames)
         {
-            return 0;
+            frames = string.Concat(frames.Split('~')[0].TakeWhile(f => f == '+' || f == '-' || char.IsDigit(f)));
+            if (string.IsNullOrEmpty(frames))
+                return 0;
+            return int.Parse(frames);
         }
 
         private int ParseDamage(string damage)
@@ -75,71 +75,49 @@ namespace tekken_frames.Controllers
             return 0;
         }
 
-        private HitLevel ParseHitLevel(string hitLevel)
+        private List<HitLevel> ParseHitLevels(string hitLevel)
         {
-            return HitLevel.High;
+            return new List<HitLevel> { HitLevel.High };
         }
 
-        private Command ParseCommand(string Command)
+        private Character ParseCharacter(string character)
         {
-            return new Command
-            {
-                ButtonInput = new ButtonInput(),
-                DirectionalInput = DirectionalInput.db
-            };
+            return (Character)Enum.Parse(typeof(Character), character.Replace(" ", "").Replace("-", ""), true);
         }
 
-        private SingleMove ParseSingleMove(MoveExcelRow excelMove)
+        private Move ParseMove(MoveExcelRow excelMove)
         {
-            return new SingleMove
+            var move = new Move
             {
-                Character = (Character)Enum.Parse(typeof(Character), excelMove.Character),
+                Character = ParseCharacter(excelMove.Character),
                 Damage = ParseDamage(excelMove.Damage),
                 StartUpFrame = ParseFrames(excelMove.StartUpFrame),
                 BlockFrame = ParseFramesAdvantage(excelMove.BlockFrame),
                 HitFrame = ParseFramesAdvantage(excelMove.HitFrame),
                 CounterHitFrame = ParseFramesAdvantage(excelMove.CounterHitFrame),
-                HitLevel = ParseHitLevel(excelMove.HitLevel),
-                Notes = excelMove.Notes
+                HitLevels = ParseHitLevels(excelMove.HitLevel),
+                Notes = excelMove.Notes,
+                MoveProperties = new MoveProperties()
             };
-        }
-
-        private StringMove ParseStringMove(MoveExcelRow excelMove)
-        {
-            var stringMove = new StringMove
-            {
-                Character = (Character)Enum.Parse(typeof(Character), excelMove.Character),
-                Damage = excelMove.Damage.Split(",").Select(d => int.Parse(d)).Sum(),
-                BlockFrame = ParseFramesAdvantage(excelMove.BlockFrame),
-                CounterHitFrame = ParseFramesAdvantage(excelMove.CounterHitFrame),
-                HitFrame = ParseFramesAdvantage(excelMove.HitFrame),
-                StartUpFrame = ParseFrames(excelMove.StartUpFrame),
-                MoveProperties = new MoveProperties(),
-                Commands = null,
-                HitLevels = null,
-                Notes = null
-            };
-            return stringMove;
+            var inputParser = new InputParser(excelMove.Command);
+            inputParser.Parse();
+            move.Stance = inputParser.GetStance();
+            move.Commands = inputParser.GetCommands();
+            move.MoveProperties.Rage = inputParser.Rage();
+            //TODO if "or" then multiply moves
+            return move;
         }
 
         private IEnumerable<Move> GenerateMoves(IEnumerable<MoveExcelRow> excelMoves)
         {
-            return excelMoves.Where(e => e.Character == "Josie").Select<MoveExcelRow, Move>(excelMove =>
-            {
-                if (excelMove.Command.Contains(","))
-                {
-                    return ParseStringMove(excelMove);
-                }
-
-                return ParseSingleMove(excelMove);
-            });
+            return excelMoves.Select<MoveExcelRow, Move>(ParseMove);
         }
 
         [HttpGet]
         public ActionResult<IEnumerable<Move>> Get()
         {
             var excelMoves = ReadExcel();
-            var moves = GenerateMoves(excelMoves);
+            var moves = GenerateMoves(excelMoves).Take(10);
             return Ok(moves);
         }
     }

@@ -7,5 +7,6 @@ public enum DirectionalInput
     db,
     ub,
     d,
-    u
+    u,
+    n
 }
