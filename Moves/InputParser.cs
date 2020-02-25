@@ -20,6 +20,9 @@ public class InputParser
         if (!TryParseDirectionalInput() && !TryParseButtonInput())
             ParseStance();
         ParseCommands();
+        //parse "or"
+        //parse the rest
+        //parse extra (), can be removed
     }
 
     public string GetStance()
@@ -77,9 +80,6 @@ public class InputParser
 
     public void ParseCommands()
     {
-        //parse "or"
-        //parse the rest
-        //parse extra (), can be removed
         commands = commandString.Replace(" ", "").Split(",")
         .Select(command =>
           {

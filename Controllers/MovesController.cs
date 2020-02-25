@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
 using OfficeOpenXml;
 
@@ -58,7 +59,33 @@ namespace tekken_frames.Controllers
 
         private FramesAdvantage ParseFramesAdvantage(string frames)
         {
-            return new FramesAdvantage();
+            if (string.IsNullOrWhiteSpace(frames))
+                return null;
+            frames = frames.ToLower();
+            if (frames.Contains("knd"))
+                return new FramesAdvantage
+                {
+                    AdvantageType = AdvantageType.Knockdown
+                };
+            if (frames.Contains("launch"))
+                return new FramesAdvantage
+                {
+                    AdvantageType = AdvantageType.Launch
+                };
+            if (frames[0] == '+' || frames[0] == '+' || char.IsDigit(frames[0]))
+            {
+                var i = 1;
+                while (i < frames.Length && char.IsDigit(frames[i]))
+                {
+                    ++i;
+                }
+                return new FramesAdvantage
+                {
+                    AdvantageType = AdvantageType.Normal,
+                    Frames = int.Parse(frames.Substring(0, i))
+                };
+            }
+            return null;
         }
 
         private int ParseFrames(string frames)
@@ -71,18 +98,76 @@ namespace tekken_frames.Controllers
 
         private int ParseDamage(string damage)
         {
-            //int.Parse(excelMove.Damage)
-            return 0;
+            if (string.IsNullOrWhiteSpace(damage))
+                return 0;
+            return damage.Split(',').Select(int.Parse).Sum();
         }
 
-        private List<HitLevel> ParseHitLevels(string hitLevel)
+        private string RemoveBetween(string s, char begin, char end)
         {
-            return new List<HitLevel> { HitLevel.High };
+            return new Regex(string.Format("\\{0}.*?\\{1}", begin, end)).Replace(s, string.Empty);
+        }
+
+        private List<HitLevel> ParseHitLevels(string hitLevels)
+        {
+            hitLevels = RemoveBetween(hitLevels, '(', ')').Replace(",", "").Replace(" ", "");
+            var result = new List<HitLevel>();
+            for (var i = 0; i < hitLevels.Length; ++i)
+            {
+                var h = hitLevels[i];
+                switch (h)
+                {
+                    case 'h': result.Add(HitLevel.High); break;
+                    case 'm': result.Add(HitLevel.Mid); break;
+                    case 'l': result.Add(HitLevel.Low); break;
+                    case '!': result.Add(HitLevel.Special); break;
+                    case 'S':
+                        if (i < hitLevels.Length - 1 && hitLevels[i + 1] == 'm')
+                        {
+                            result.Add(HitLevel.SpecialMid);
+                            ++i;
+                        }
+                        break;
+                }
+            }
+            return result;
         }
 
         private Character ParseCharacter(string character)
         {
             return (Character)Enum.Parse(typeof(Character), character.Replace(" ", "").Replace("-", ""), true);
+        }
+
+        private MoveProperties ParseMovePropertiesFromNotes(string notes)
+        {
+            var props = new MoveProperties();
+            if (string.IsNullOrWhiteSpace(notes))
+                return props;
+            if (notes.ToLower().Contains("power crush"))
+            {
+                props.PowerCrush = true;
+            }
+            if (notes.ToLower().Contains("Homing"))
+            {
+                props.Homing = true;
+            }
+            if (notes.ToLower().Contains("tail spin"))
+            {
+                props.TailSpin = true;
+            }
+            if (notes.ToLower().Contains("wall splat"))
+            {
+                props.WallSplat = true;
+            }
+            if (notes.ToLower().Contains("wall bounce"))
+            {
+                props.WallBounce = true;
+            }
+            if (notes.ToLower().Contains("rage"))
+            {
+                props.Rage = true;
+            }
+            return props;
         }
 
         private Move ParseMove(MoveExcelRow excelMove)
@@ -97,7 +182,7 @@ namespace tekken_frames.Controllers
                 CounterHitFrame = ParseFramesAdvantage(excelMove.CounterHitFrame),
                 HitLevels = ParseHitLevels(excelMove.HitLevel),
                 Notes = excelMove.Notes,
-                MoveProperties = new MoveProperties()
+                MoveProperties = ParseMovePropertiesFromNotes(excelMove.Notes)
             };
             var inputParser = new InputParser(excelMove.Command);
             inputParser.Parse();

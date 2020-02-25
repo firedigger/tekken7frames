@@ -3,5 +3,6 @@ public enum HitLevel
     Low,
     Mid,
     High,
-    SpecialMid
+    SpecialMid,
+    Special
 }
